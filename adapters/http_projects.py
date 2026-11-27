@@ -124,27 +124,31 @@ def _post(session, url, ctx, *, data=None, files=None, json=None, headers=None) 
         raise SubmissionUnknown('本地后端提交响应丢失，请核对原服务任务，禁止重复创建') from None
 
 
-def _download(session, url: str, destination: Path, ctx) -> None:
+def _download(session, url: str, destination: Path, ctx, *, label='成片', max_bytes=None, validate=None) -> None:
     """Read only the configured backend endpoint, never a returned media URL."""
     temporary = destination.with_suffix('.part')
     ctx.check_cancelled()
     try:
         with session.get(url, stream=True, timeout=_timeout(ctx), allow_redirects=False) as response:
             if not 200 <= response.status_code < 300:
-                raise AdapterError(f'本地成片下载失败（HTTP {response.status_code}），可继续下载原任务')
+                raise AdapterError(f'本地{label}下载失败（HTTP {response.status_code}），可继续下载原任务')
             size = 0
             with temporary.open('wb') as output:
                 for chunk in response.iter_content(1024 * 1024):
                     ctx.check_cancelled()
                     if chunk:
-                        output.write(chunk)
                         size += len(chunk)
+                        if max_bytes is not None and size > max_bytes:
+                            raise AdapterError(f'{label}超过保存大小限制')
+                        output.write(chunk)
             ctx.check_cancelled()
             if not size:
-                raise AdapterError('本地成片为空，可继续下载原任务')
+                raise AdapterError(f'本地{label}为空，可继续下载原任务')
+            if validate:
+                validate(temporary)
             temporary.replace(destination)
     except requests.RequestException:
-        raise AdapterError('本地成片下载中断，可继续下载原任务') from None
+        raise AdapterError(f'本地{label}下载中断，可继续下载原任务') from None
     finally:
         temporary.unlink(missing_ok=True)
 

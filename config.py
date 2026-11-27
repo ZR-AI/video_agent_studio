@@ -19,6 +19,9 @@ class Settings:
     port: int = 8010
     product_url: str = 'http://127.0.0.1:8008'
     motion_url: str = 'http://127.0.0.1:8001'
+    qwen_image_url: str = 'http://127.0.0.1:8190'
+    portrait_image_url: str = 'http://127.0.0.1:8009'
+    background_url: str = 'http://127.0.0.1:3099'
     fl2va_url: str = ''
     ds_key: str = field(default='', repr=False)
     rh_key: str = field(default='', repr=False)
@@ -58,6 +61,9 @@ class Settings:
             port=int(values.get('VIDEO_AGENT_PORT', '8010')),
             product_url=values.get('PRODUCT_STUDIO_URL', 'http://127.0.0.1:8008').rstrip('/'),
             motion_url=values.get('MOTION_STUDIO_URL', 'http://127.0.0.1:8001').rstrip('/'),
+            qwen_image_url=values.get('QWEN_IMAGE_STUDIO_URL', 'http://127.0.0.1:8190').rstrip('/'),
+            portrait_image_url=values.get('PORTRAIT_IMAGE_STUDIO_URL', 'http://127.0.0.1:8009').rstrip('/'),
+            background_url=values.get('BACKGROUND_STUDIO_URL', 'http://127.0.0.1:3099').rstrip('/'),
             fl2va_url=values.get('FL2VA_URL', '').rstrip('/'),
             ds_key=values.get('DEEPSEEK_API_KEY', ''), rh_key=values.get('RUNNINGHUB_API_KEY', ''),
             ds_base=values.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com').rstrip('/'),

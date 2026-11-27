@@ -1,10 +1,81 @@
-# 视频 Agent 工作台 · 第一版
+<div align="center">
 
-Python + LangGraph + FastAPI 的本地视频 agent。通过中文对话选择商品广告、人物口播或动作迁移，补充素材，生成计划；用户确认后执行付费生成。支持历史会话、后台任务、参考帧预览确认、进度查询、暂停及恢复、成片下载。
+# Video Agent Studio
 
-## 启动
+**图像与视频创作工作台**
 
-首次从 GitHub 安装（Python 3.10+，本机需要 `ffmpeg` / `ffprobe`）：
+用中文对话规划图像和视频任务，在同一会话复用人物、商品和直播布景素材。
+
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB)
+![LangGraph](https://img.shields.io/badge/LangGraph-Agent%20Orchestration-167760)
+![FastAPI](https://img.shields.io/badge/FastAPI-HTTP%20API-05998B)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-Local%20Composition-477B2E)
+
+[工作流](#工作流) · [直播间合成](#直播间合成) · [快速启动](#快速启动) · [架构与任务恢复](#架构与任务恢复)
+
+</div>
+
+![Video Agent Studio 桌面工作台，包含会话、素材、直播布景计划和结果区](examples/preview-desktop.png)
+
+<details>
+<summary>查看移动端工作台</summary>
+
+<img src="examples/preview-mobile.png" alt="Video Agent Studio 移动端工作台" width="390">
+
+</details>
+
+## 工作流
+
+上传素材并设置角色，发送需求，检查计划后点击「确认并生成」。在结果图旁点「用作人物参考图」或「用作布景参考图」，便可在同一会话继续创作。
+
+| 工具 | 输入 | 输出 |
+| --- | --- | --- |
+| **文字生人像** | 地域风格、穿搭与画幅 | 坐姿正面半身人像，可选绿幕或蓝幕 |
+| **参考图造型** | 人物图、服装／姿势／发型参考或描述 | 保留人物参考的换装和造型图 |
+| **人物口播** | 人物图、完整文案，可选商品图与音色参考 | 分段生成后拼接的口播视频 |
+| **动作迁移** | 人物图与驱动视频 | Wan 或 H3 Action 动作视频 |
+| **商品广告** | 商品图与创作需求 | H3 广告、生活片或多视角特写视频 |
+| **直播布景** | 商品图，可选带桌台的布景参考图 | 直播间整图及可用的干净背景、透明前景 |
+| **直播间合成** | 同一会话的分层布景与人物素材 | 单帧构图预览、保留原声的 MP4 |
+
+## 直播间合成
+
+人物和布景可以分开制作。在「任务与结果」打开 **直播间合成**，选取两条工作流的结果。
+
+```mermaid
+flowchart LR
+    P["文字生人像 · 绿幕"] --> Q["参考图造型"]
+    Q --> V["人物口播 / 动作迁移"]
+    G["商品图"] --> B["LiveBG 直播布景"]
+    V --> C["调位置与大小 · 预览"]
+    B --> C
+    C --> E["FFmpeg 导出 MP4"]
+```
+
+1. **准备人物**。生成纯色绿幕人像，换装时写「保留纯色绿幕」。选中满意的结果作为人物参考图，再生成口播或动作视频。
+2. **生成布景**。上传商品图选择 AI 电商展台或实景房间。有现成的带桌台参考图时，可选择素材布景。合成需要同一张布景的干净背景与透明前景。
+3. **预览和导出**。选一张人物图先预览构图，或选视频预览具体时间点。调好幕布颜色、抠像强度和主播位置，再导出 MP4。
+
+FFmpeg 在本机按 **干净背景 → 去幕布的主播 → 透明桌台与商品** 叠放。导出保留视频原声，不调用云端生成。抠像适用于保留纯色幕布的输入，普通场景中的人物分割需要单独的模型。
+
+<details>
+<summary>可直接使用的需求示例</summary>
+
+| 场景 | 输入示例 |
+| --- | --- |
+| 文字生人像 | 生成一张 9:16 的通勤风绿幕主播图。 |
+| 参考图造型 | 按服装参考图给人物换装，保留纯色绿幕和坐姿。 |
+| 人物口播 | 主播不手持商品。口播文案：大家好，今天带大家看这款随行杯。 |
+| 直播布景 | 用两张商品图做素材布景。商品名：随行杯。标语：轻装出发 |
+| 商品广告 | 用这张商品图制作一条 10 秒竖屏生活广告。 |
+
+素材布景默认取最新一张商品图，也可明确指定使用最近的 1–5 张。口播默认使用会话内的商品图生成持商品参考帧，并在视频生成前等待确认。商品应由桌台展示时，在需求中写「主播不手持商品」。
+
+</details>
+
+## 快速启动
+
+准备 **Python 3.10+** 和 **FFmpeg**，确认 `ffmpeg`、`ffprobe` 均在 PATH 中。
 
 ```bash
 git clone https://github.com/ZR-AI/video_agent_studio.git
@@ -12,110 +83,70 @@ cd video_agent_studio
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.lock
 cp .env.example .env
-# 在 .env 中填写 DEEPSEEK_API_KEY 和 RUNNINGHUB_API_KEY
 ./start.sh
 ```
 
-请保留克隆目录名 `video_agent_studio`；它也是 Python 包名。口播所需纯函数和默认提示词已随仓库打包，单独克隆不需要旧 `fl2va` 源码；若旁边已有旧项目，会继续优先使用其提示词和非敏感工作流配置。商品及动作工具通过 HTTP 调用现有服务，需要在 `.env` 中配置可连接的 `PRODUCT_STUDIO_URL` 和 `MOTION_STUDIO_URL`。本仓库不包含这两个服务的源码、模型权重或任何运行数据。
+打开 [http://127.0.0.1:8010](http://127.0.0.1:8010)。保留仓库目录名 `video_agent_studio`，启动脚本会以该名称导入 Python 包。每个数据目录使用一个服务进程。
 
-已有本机工作区已安装独立的 `.venv`，可直接启动：
+### 配置规划器与生成服务
 
-```bash
-cd /home/linjing/disk_ssd/zr_work/Wan2.2-Animate-2
-./video_agent_studio/start.sh
+在 [.env.example](.env.example) 的基础上编辑本地 `.env`。设置 `DEEPSEEK_API_KEY` 启用 DeepSeek 规划，设置 `RUNNINGHUB_API_KEY` 供直接执行的口播流程使用。没有 DeepSeek Key 时使用本地规则规划，也可显式设置 `VIDEO_AGENT_PLANNER=rules`。生成仍依赖所选工具的后端配置。
+
+| 独立服务 | 环境变量 | 默认地址 |
+| --- | --- | --- |
+| 商品视频工作台 | `PRODUCT_STUDIO_URL` | `http://127.0.0.1:8008` |
+| 动作迁移工作台 | `MOTION_STUDIO_URL` | `http://127.0.0.1:8001` |
+| Qwen 参考图造型 | `QWEN_IMAGE_STUDIO_URL` | `http://127.0.0.1:8190` |
+| 人像灵感工坊 | `PORTRAIT_IMAGE_STUDIO_URL` | `http://127.0.0.1:8009` |
+| LiveBG (`h3livebg_pkg`) | `BACKGROUND_STUDIO_URL` | `http://127.0.0.1:3099` |
+
+这些服务分别启动，只需部署你要用的工作流。Qwen 造型连接 ComfyUI。人像与 LiveBG 使用各自的 DeepSeek、RunningHub 等配置。若服务只监听局域网 IP，环境变量应填写 Agent 机器能访问的地址。
+
+<details>
+<summary>口播、配置优先级与局域网</summary>
+
+- `FL2VA_URL` 留空时，Agent 直接调用 DeepSeek 和 RunningHub。使用非 legacy 视频模式时，`FL2VA_VIDEO_MODE` 要与 `RUNNINGHUB_VIDEO_WORKFLOW_ID` 匹配。SeedVC 换音色需要 `RH_WORKFLOW_ID`。
+- 配置按进程环境变量、本项目 `.env`、`KEY_SOURCE_FILE` 的顺序读取。共享配置默认来自相邻的 `../fl2va/web/.dev.vars`。若仓库旁有 `fl2va`，Agent 也会读取原项目的工作流 ID 与提示词。
+- 局域网访问时，可在 `.env` 设置 `VIDEO_AGENT_HOST=0.0.0.0`，重启后用服务器的局域网 IP 和端口打开页面。工作台面向单用户或可信局域网，`X-App-Token` 用于校验 POST 请求。
+- `.env`、运行时数据库、上传素材、成片和日志保存在本地。仓库只提供配置示例。
+
+</details>
+
+## 架构与任务恢复
+
+```mermaid
+flowchart LR
+    UI["工作台"] --> A["LangGraph · 理解与校验"]
+    A --> R["人工确认"]
+    R --> J["SQLite 任务台账"]
+    UI -->|"导出直播间视频"| J
+    J --> W["后台执行器"]
+    W --> T["原工作流 / 本地 FFmpeg"]
+    T --> O["会话素材与任务结果"]
 ```
 
-浏览器打开 <http://127.0.0.1:8010>。浏览器在其他电脑时，转发服务器 8010 端口：
+- **计划与执行分开**。LangGraph 在确认前暂停，SQLite 保存检查点和作业。同一个计划重复确认会返回原任务。
+- **恢复沿用原提交**。执行器记录原服务任务编号，口播还会逐段记录 RunningHub taskId。提交回执丢失时，先到原工作台核对并补录编号。已接单的任务不会因重复确认再次提交。
+- **完成与质检独立记录**。动作质检可在原流程内有限重试，布景分层失败时仍会保留整图。最终生成费用以原服务为准。
+- **暂停保留进度**。暂停会停止本地处理与轮询，已接受的云端任务可能继续运行。
+
+| 文件 | 职责 |
+| --- | --- |
+| [`graph.py`](graph.py) · [`planner.py`](planner.py) | 对话规划、参数校验、确认检查点 |
+| [`engine.py`](engine.py) · [`store.py`](store.py) | 后台执行、恢复与 SQLite 台账 |
+| [`adapters/`](adapters/) | 原工作流的 API 与任务适配 |
+| [`composition.py`](composition.py) | 会话内选材、本地抠像与分层合成 |
+| [`app.py`](app.py) · [`static/`](static/) | FastAPI 与无构建前端 |
+
+服务启动后可打开 [`/docs`](http://127.0.0.1:8010/docs) 查看 API。运行时数据位于 `data/`。
+
+## 本地验证
+
+从克隆目录的父目录运行：
 
 ```bash
-ssh -N -L 8010:127.0.0.1:8010 用户名@服务器地址
-```
-
-服务默认仅监听本机，面向单用户。每个数据目录只运行一个进程/worker，进程锁会拒绝第二个实例。不要用 `uvicorn --workers` 或 `--reload` 执行生产任务。
-
-新环境安装示例（Python 3.10+）：
-
-```bash
-python3 -m venv video_agent_studio/.venv
-video_agent_studio/.venv/bin/python -m pip install -r video_agent_studio/requirements.lock
-```
-
-若系统 Python 缺少 ensurepip，可使用现有 Conda Python 创建 venv，或使用 uv：
-
-```bash
-uv venv --python /home/linjing/disk_ssd/zr_work/env/wananimate2_web/bin/python video_agent_studio/.venv
-uv pip install --python video_agent_studio/.venv/bin/python -r video_agent_studio/requirements.lock
-```
-
-需要本机 `ffmpeg` / `ffprobe`。旧商品项目和动作项目继续作为独立服务运行：
-
-```bash
-./product_video_studio/start.sh
-/home/linjing/disk_ssd/zr_work/env/wananimate2_web/bin/python wananimate2_runninghub_web/app.py
-```
-
-默认连接 8008 / 8001，工作台会显示服务是否可连接。口播直接在新后台执行，无需打开旧 fl2va 网页或启动 Cloudflare 开发服务器。
-
-## 配置与凭证
-
-默认读取 `../fl2va/web/.dev.vars` 中的 DeepSeek / RunningHub 配置；不复制、修改旧文件。优先级：进程环境变量 → 本项目 `.env` → KEY_SOURCE_FILE。可参考 `.env.example`。
-
-单独克隆没有这个共享文件时，直接在本项目 `.env` 设置两个 API Key 即可。`.env`、`.venv/`、任务数据库、上传素材、成片和日志均不提交到 GitHub；`.env.example` 只有变量名及非敏感默认配置。
-
-`VIDEO_AGENT_MODEL` 默认 `deepseek-chat`，负责文字需求与工具选择；原商品工具保留其视觉策划模型。主 agent 只接收素材角色和元数据，商品视觉理解由商品工具执行。
-
-没有 DeepSeek Key，或 `VIDEO_AGENT_PLANNER=rules` 时，明确显示“本地规则规划”，支持离线检查与基础任务计划；真正的口播分段/商品策划仍需相应 API。DeepSeek 失败会报错，不会静默声称规划成功或自动生成。
-
-`FL2VA_URL` 留空时直连 DeepSeek / RunningHub。默认从旧 `wrangler.toml` 读取主视频及 SeedVC 工作流 ID。`FL2VA_VIDEO_MODE` 必须匹配 `RUNNINGHUB_VIDEO_WORKFLOW_ID` 对应版本。第一版每个部署使用一个口播生成版本，不允许任务混用不同版本的云端 ID。
-
-密钥只在执行器内存中使用，不写入对话、计划、检查点、任务记录、前端存储。外部 LangSmith tracing 默认禁用。POST 需要服务每次启动生成的 X-App-Token，浏览器会自动获取；这用于本地请求校验，不是多用户登录系统。
-
-## 使用
-
-1. 新建会话，上传素材并选择角色：商品图、人物参考图、驱动视频、尾帧或音色参考。
-2. 发送需求。例如“用商品图制作10秒竖屏生活广告”；口播请写“口播文案：……完整原文……”；动作任务上传人物图和驱动视频。
-3. 检查计划、素材缺项和费用提示。上传新素材后再发一句“使用新素材继续”，生成新计划。
-4. 点击确认生成。任务保存到服务器，关闭网页不停止后台处理。
-5. 含商品的口播先生成持商品参考图，停在预览确认，再继续生成视频。
-
-支持的任务边界：
-
-| 工具 | 第一版范围 |
-|---|---|
-| 商品广告 | 原广告/生活片、多视角特写，沿用原 H3 导演台、策划校验和恢复 |
-| 人物口播 | 文案分段、原始人物参考帧、可选 Qwen 持商品合成、五种比例、串行生成、本地直接拼接、可选 SeedVC 换音色 |
-| 动作迁移 | Wan 或 H3 action，独立/连续模式按原服务执行，可选原有抽帧质检与有限自动修复 |
-
-口播第一版不包含旧网页的背景取色还原、paired 双分支、尾音加速及自定义转场；可在旧网页准备参考图后上传到新工作台。动作输出尺寸/比例由原工作流和驱动视频决定。跨三个工具的混合剪辑属于后续版本；一个计划选择一个工具。
-
-## 恢复与付费边界
-
-LangGraph 流程为 `understand → validate → review(interrupt) → enqueue`。计划及确认状态保存到 SQLite 检查点；确认后只创建本地作业，不直接在图节点内提交云任务。同一计划及 request_id 的重复确认均返回原作业。实际后台执行使用独立 SQLite 台账。
-
-商品/动作 adapter 保存原服务的本地 job ID，恢复查询该任务。口播按 `composite / segment:1 / voice` 等步骤记录提交意图，取得云端 taskId 后立即落盘，下载和拼接失败可复用已有结果。
-
-提交响应丢失或提交中服务崩溃时禁止自动重交。商品/动作创建响应未知时，应核对原工作台并补录其**本地任务 ID**；口播则补录对应步骤的 **RunningHub taskId**。原商品任务内部的云端提交未知，仍需去原工作台绑定云端 ID 后再回来继续。
-
-暂停停止本地处理/轮询，不保证取消已接受的云任务，也不会退还已发生费用。服务重启后运行中任务标为“待继续”；未知提交保持核对要求。云端明确失败的口播段不会自动重新收费；需要新候选时新建计划。任务配置和输入绑定有指纹，不能混用历史分段。
-
-“生成完成”和“质检通过”分开记录。达到修复上限仍有缺陷时显示需复核，保留成片。现有动作质检不能直接套用于带货/多镜头广告，第一版不跨项目复用此规则，也不承诺音频、口型或每个视频帧均已检查。
-
-费用以供应商为准，工作台不伪造金额估计。确认多视角计划会先发生图片生成费用；动作自动质检与重跑另有消耗。
-
-## 离线验证
-
-```bash
-cd .. # 从克隆仓库根目录回到其父目录，以包名运行测试
 video_agent_studio/.venv/bin/python -m pytest video_agent_studio/tests -q
 node --check video_agent_studio/static/app.js
 ```
 
-测试使用模拟供应商，覆盖真实 LangGraph 计划确认、恢复和执行台账，以及三个 adapter 的提交防重与接口契约。不调用付费生成 API。真实云端生成的画质、云端插件版本和不同素材效果需通过样片验证。
-
-## 文件与 API
-
-`graph.py` 负责 agent 状态图；`planner.py` 负责 DeepSeek 规划和参数校验；`engine.py` 负责后台执行；`store.py` 是事务任务台账；`adapters/` 保留三个项目的执行边界；`static/` 为无构建前端。
-
-本地数据位于 `data/`：`studio.sqlite3`、`checkpoints.sqlite3`、`assets/`、`jobs/<id>/`，均被 Git 忽略。不要删除仍在运行或等待恢复的任务目录。
-
-主要 API：`GET /api/settings`、`POST /api/sessions`、`POST /api/assets`、`POST /api/sessions/{id}/messages`、`POST /api/plans/{id}/execute`、`GET /api/jobs/{id}`、`POST /api/jobs/{id}/pause`、`POST /api/jobs/{id}/resume`、`GET /api/jobs/{id}/artifacts/{index}`。详细输入见 FastAPI 的 `/docs`。
+测试覆盖计划确认、素材复用、提交防重、断点恢复和真实本地 FFmpeg 合成。云服务接口使用模拟响应，验证过程不消耗生成额度。

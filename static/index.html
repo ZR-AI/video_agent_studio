@@ -4,64 +4,96 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>视频创作 Agent</title>
+  <title>图像与视频创作 Agent</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
 </head>
 <body>
   <div class="studio">
     <aside class="sidebar" aria-label="创作会话">
-      <a class="brand" href="/" aria-label="视频创作 Agent 首页"><span class="brand-mark" aria-hidden="true">V<span>✦</span></span><span>视频创作<span class="brand-subtitle">AGENT STUDIO</span></span></a>
+      <a class="brand" href="/" aria-label="图像与视频创作 Agent 首页"><span class="brand-mark" aria-hidden="true">V<span>✦</span></span><span>创作工作台</span></a>
       <button class="button new-session" id="new-session" type="button"><span aria-hidden="true">＋</span> 新建创作</button>
-      <div class="sidebar-heading">最近会话 <span id="session-count"></span></div>
-      <div class="session-list" id="session-list" aria-live="polite"><p class="muted sidebar-empty">正在加载会话…</p></div>
-      <div class="sidebar-footer"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">正在连接服务</span><span class="version">V1</span></div>
+      <nav class="session-list" id="session-list" aria-label="最近会话"><p class="muted sidebar-empty">正在加载会话…</p></nav>
     </aside>
 
     <main class="workspace">
-      <header class="workspace-header"><div><div class="eyebrow">从想法，到成片</div><h1 id="session-title">开始一次创作</h1></div><span class="planner-badge" id="planner-mode">正在连接</span></header>
+      <header class="workspace-header"><h1 id="session-title">新创作</h1></header>
       <div class="global-notice" id="global-notice" role="status" hidden></div>
       <section class="conversation" id="conversation" aria-label="需求对话" tabindex="0">
         <div class="welcome" id="welcome">
-          <div class="welcome-symbol" aria-hidden="true">✦</div>
-          <h2>描述想拍的视频</h2>
-          <p>告诉我你的创意，上传素材。确认创作计划后，再开始生成。</p>
-          <div class="suggestions">
-            <button type="button" data-prompt="我想为一款商品制作一条竖屏广告，请先帮我整理创作计划。"><span>商品广告</span>把产品亮点变成视频 <span aria-hidden="true">↗</span></button>
-            <button type="button" data-prompt="我想用人物参考图制作一条口播视频，请告诉我需要准备哪些素材。"><span>人物口播</span>让画面说出你的文案 <span aria-hidden="true">↗</span></button>
-            <button type="button" data-prompt="我想让参考图中的人物复现驱动视频的动作，请帮我规划。"><span>动作迁移</span>用参考人物演绎动作 <span aria-hidden="true">↗</span></button>
-          </div>
+          <h2>你想创作什么？</h2>
         </div>
         <div class="messages" id="messages" aria-live="polite" aria-relevant="additions"></div>
         <div class="thinking" id="thinking" hidden><span class="thinking-dot"></span>正在整理你的创作计划…</div>
       </section>
 
       <section class="composer-area" aria-label="输入需求与素材">
-        <div class="materials-heading"><span>创作素材 <span id="asset-count" class="count">0</span></span><span class="muted">可先描述需求，再补充素材</span></div>
-        <div class="asset-list" id="asset-list"></div>
-        <div class="upload-row" id="drop-zone">
-          <select id="asset-role" aria-label="上传素材的用途"><option value="product">商品图</option><option value="reference">人物参考图</option><option value="driver">动作驱动视频</option><option value="last_frame">尾帧图</option><option value="voice">口播音频</option></select>
-          <button class="button button-secondary upload-button" type="button" id="upload-button"><span aria-hidden="true">＋</span> 上传素材</button>
-          <span class="upload-hint" id="upload-hint">或将文件拖到这里</span>
-          <input type="file" id="file-input" accept="image/*" multiple hidden>
-        </div>
-        <form id="message-form" class="composer">
-          <label for="message-input" class="sr-only">描述视频需求</label>
-          <textarea id="message-input" rows="3" placeholder="例如：用这张商品图做一条 15 秒的竖屏广告，风格简洁，突出便携和续航…" maxlength="20000"></textarea>
-          <div class="composer-toolbar"><div class="tool-picker" id="tool-picker" role="group" aria-label="创作流程"></div><button class="send-button" id="send-button" type="submit" aria-label="发送需求">↑</button></div>
+        <form id="message-form" class="composer" aria-label="创作需求">
+          <div class="composer-materials" id="drop-zone" role="group" aria-label="创作素材">
+            <div class="asset-list" id="asset-list"></div>
+            <div class="upload-row">
+              <select id="asset-role" aria-label="素材类型"><option value="product">商品图</option><option value="scene">布景参考图</option><option value="reference">人物参考图</option><option value="costume">服装参考图</option><option value="pose">姿势参考图</option><option value="hair">发型参考图</option><option value="driver">动作驱动视频</option><option value="last_frame">尾帧图</option><option value="voice">音色参考音频</option></select>
+              <button class="button button-secondary upload-button" type="button" id="upload-button" title="选择或拖入素材">＋ 添加素材</button>
+              <input type="file" id="file-input" accept="image/*" multiple hidden>
+            </div>
+          </div>
+          <label for="message-input" class="sr-only">描述创作需求</label>
+          <textarea id="message-input" rows="3" placeholder="描述你想生成的图片或视频…" maxlength="20000"></textarea>
+          <div class="composer-toolbar"><div class="tool-picker" id="tool-picker" role="group" aria-label="创作流程"></div><button class="send-button" id="send-button" type="submit" aria-label="发送需求" title="Enter 发送，Shift + Enter 换行">↑</button></div>
         </form>
-        <div class="composer-footnote"><span id="composer-status">发送需求只制定计划；确认生成后才会调用付费生成接口。</span><span class="keyboard-hint">Enter 发送 · Shift + Enter 换行</span></div>
       </section>
     </main>
 
     <aside class="inspector" aria-label="计划与执行结果">
-      <div class="inspector-heading"><span class="section-icon" aria-hidden="true">▤</span><h2>创作计划</h2><span class="small-label">PLAN</span></div>
-      <section class="plan-panel" id="plan-panel"><div class="empty-plan"><div aria-hidden="true">◇</div><h3>先聊聊你的想法</h3><p>创作流程、所需素材和执行步骤会整理在这里。</p></div></section>
-      <div class="execute-panel"><p class="payment-note" id="payment-note">点击生成会调用付费接口，费用由所选流程产生。</p><button class="button execute-button" id="execute-button" type="button" disabled><span aria-hidden="true">▷</span> 确认计划并生成</button><p class="execute-hint" id="execute-hint">补全需求与素材后即可开始</p></div>
-      <div class="jobs-heading"><h2>任务与结果</h2><span class="live-indicator" id="polling-label">每 3 秒更新</span></div>
-      <section class="jobs-list" id="jobs-list" aria-live="polite"><div class="empty-jobs">生成任务将在这里显示。<br>切换会话不会中断云端任务。</div></section>
+      <section class="plan-section" aria-labelledby="plan-heading">
+        <h2 id="plan-heading">计划</h2>
+        <div class="plan-panel" id="plan-panel"><p class="empty-panel">暂无计划</p></div>
+        <div class="execute-panel" id="execute-panel" hidden>
+          <button class="button execute-button" id="execute-button" type="button" aria-describedby="payment-note execute-hint" disabled>确认并生成</button>
+          <p class="payment-note" id="payment-note" hidden>确认后将使用云端额度</p>
+          <p class="execute-hint" id="execute-hint" role="status" hidden></p>
+        </div>
+      </section>
+      <section class="results-section" aria-labelledby="results-heading">
+        <div class="results-heading">
+          <h2 id="results-heading">任务与结果</h2>
+          <button class="button button-secondary composition-open" id="open-composition" type="button" disabled>直播间合成</button>
+        </div>
+        <div class="jobs-list" id="jobs-list" aria-live="polite"><p class="empty-panel">暂无任务</p></div>
+      </section>
     </aside>
   </div>
+  <dialog class="composition-dialog" id="composition-dialog" aria-labelledby="composition-title">
+    <form id="composition-form">
+      <header class="composition-heading">
+        <h2 id="composition-title">直播间合成</h2>
+        <button class="button button-secondary" id="close-composition" type="button" aria-label="关闭直播间合成">关闭</button>
+      </header>
+      <div class="composition-body">
+        <div class="composition-stage" id="composition-stage">
+          <img id="composition-preview" alt="直播间合成预览" hidden>
+          <p id="composition-placeholder">选择布景和人物后预览</p>
+        </div>
+        <div class="composition-controls">
+          <label>直播布景<select id="composition-scene" required></select></label>
+          <label>人物素材<select id="composition-person" required></select></label>
+          <div class="composition-row">
+            <label>幕布颜色<input id="composition-color" type="color" value="#00ff00"></label>
+            <label id="composition-time">预览时间（秒）<input id="composition-seconds" type="number" min="0" step="0.1" value="0"></label>
+          </div>
+          <label>抠像强度<input id="composition-similarity" type="range" min="1" max="50" value="24"></label>
+          <label>人物大小<input id="composition-scale" type="range" min="15" max="160" value="76"></label>
+          <label>左右位置<input id="composition-x" type="range" min="0" max="100" value="50"></label>
+          <label>上下位置<input id="composition-y" type="range" min="0" max="100" value="86"></label>
+        </div>
+      </div>
+      <footer class="composition-footer">
+        <p id="composition-status" role="status"></p>
+        <button class="button button-secondary" id="render-composition" type="submit" disabled>预览</button>
+        <button class="button execute-button" id="export-composition" type="button" disabled>导出视频</button>
+      </footer>
+    </form>
+  </dialog>
   <div class="toast" id="toast" role="status" hidden></div>
 </body>
 </html>

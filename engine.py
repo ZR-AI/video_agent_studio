@@ -4,14 +4,19 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 
 from .adapters.base import AdapterError, Cancelled, ExecutionContext, NeedsReview, SubmissionUnknown
+from .adapters.background import BackgroundAdapter, valid_background_id
 from .adapters.http_projects import ProductAdapter, MotionAdapter
+from .adapters.image_projects import PortraitImageAdapter, QwenImageAdapter, valid_qwen_id
 from .adapters.talking import TalkingAdapter
+from .composition import CompositionAdapter
 
 
 class Engine:
     def __init__(self, store, settings, adapters=None):
         self.store, self.settings = store, settings
-        self.adapters = adapters or {'product': ProductAdapter(), 'talking': TalkingAdapter(), 'motion': MotionAdapter()}
+        self.adapters = adapters or {'product': ProductAdapter(), 'talking': TalkingAdapter(), 'motion': MotionAdapter(),
+                                     'qwen_image': QwenImageAdapter(), 'portrait_image': PortraitImageAdapter(),
+                                     'background': BackgroundAdapter(), 'composition': CompositionAdapter(store)}
         self.pool = ThreadPoolExecutor(max_workers=settings.max_workers, thread_name_prefix='video-agent')
         self.lock = threading.RLock()
         self.active = {}
@@ -39,7 +44,8 @@ class Engine:
             context = ExecutionContext(self.settings, workdir, assets,
                                        lambda **patch: self.store.update('jobs', identity, **patch), stop)
             result = self.adapters[job['tool']].execute(job, context)
-            self.store.update('jobs', identity, **result, state='completed', progress='成片已保存', error='')
+            progress = '图片已保存' if job['tool'] in {'qwen_image', 'portrait_image', 'background'} else '成片已保存'
+            self.store.update('jobs', identity, **result, state='completed', progress=progress, error='')
         except Cancelled as exc:
             self.store.update('jobs', identity, state='interrupted' if self.closing else 'paused', progress=str(exc), error='')
         except SubmissionUnknown as exc:
@@ -78,8 +84,12 @@ class Engine:
             details = dict(job.get('details') or {})
             changes = {}
             if remote_job_id:
-                if job['tool'] == 'talking' or job.get('remote_job_id') or not job.get('submission_intent'):
+                if job['tool'] in {'talking', 'portrait_image'} or job.get('remote_job_id') or not job.get('submission_intent'):
                     raise ValueError('仅可为提交状态未知且没有后端任务编号的任务补录编号')
+                if job['tool'] == 'qwen_image' and not valid_qwen_id(remote_job_id):
+                    raise ValueError('请输入造型工作台中的完整 UUID 任务编号')
+                if job['tool'] == 'background' and not valid_background_id(remote_job_id):
+                    raise ValueError('请输入直播布景原工作台的完整任务编号')
                 changes['remote_job_id'] = remote_job_id
             if step_name or task_id:
                 if job['tool'] != 'talking' or not step_name or not task_id:
